@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Sleep Quality Analysis</title>
+</head>
+<body>
+<h1>Sleep Quality Analysis</h1>
+
+<p>This page loads sleep health data from a CSV file through Spring Boot.</p>
+
+<button onclick="loadData()">Load CSV Data</button>
+
+<h2>Result</h2>
+<p id="result">Data has not been loaded yet.</p>
+
+<script>
+    function loadData() {
+        fetch('/load-data')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('result').innerText = data;
+            })
+            .catch(error => {
+                document.getElementById('result').innerText = 'Failed to load data.';
+                console.error(error);
+            });
+    }
+</script>
+</body>
+</html>
