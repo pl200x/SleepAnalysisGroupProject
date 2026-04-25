@@ -17,8 +17,8 @@ Edit:
 src/main/resources/application.properties
 
 Add:
-spring.mail.username=YOUR_EMAIL@gmail.com
-spring.mail.password=YOUR_APP_PASSWORD
+  - `spring.mail.username` with your Gmail address
+  - `spring.mail.password` with your App Password
 
 ### Notes:
 You **must use a Gmail App Password**, not normal password. 
