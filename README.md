@@ -9,7 +9,7 @@
 
 ## Features:
 
-## Email Configuration (Required for Email Feature)
+### Email Configuration (Required for Email Feature)
 
 To enable email functionality, you must configure your own Gmail account.
 
