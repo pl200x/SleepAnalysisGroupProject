@@ -8,4 +8,8 @@ public interface SleepDataService {
     List<SleepRecord> getAllRecords();
     int loadData();
     boolean isDataLoaded();
+    double getAverageSleepDuration();
+    double getAverageSleepQuality();
+    double getAverageStressLevel();
+    double getAverageActivity();
 }

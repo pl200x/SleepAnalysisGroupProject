@@ -15,18 +15,48 @@ public class SleepDataServiceImpl implements SleepDataService{
 
     @Override
     public int loadData() {
-        records = CsvDataLoader.loadData("data/sleep_health.csv");
+        records = CsvDataLoader.loadData("data/SleepHealthDataset.csv");
         return records.size();
     }
 
     @Override
     public List<SleepRecord> getAllRecords() {
-        return CsvDataLoader.loadData("data/sleep_health.csv");
+        return CsvDataLoader.loadData("data/SleepHealthDataset.csv");
     }
 
     @Override
     public boolean isDataLoaded() {
         return records != null && !records.isEmpty();
+    }
+
+    @Override
+    public double getAverageSleepDuration() {
+        return records.stream()
+                .mapToDouble(SleepRecord::getSleepDuration)
+                .average()
+                .orElse(0.0);
+    }
+    @Override
+    public double getAverageSleepQuality() {
+        return records.stream()
+                .mapToInt(SleepRecord::getQualityOfSleep)
+                .average()
+                .orElse(0.0);
+    }
+    @Override
+    public double getAverageStressLevel() {
+        return records.stream()
+                .mapToInt(SleepRecord::getStressLevel)
+                .average()
+                .orElse(0.0);
+    }
+
+    @Override
+    public double getAverageActivity() {
+        return records.stream()
+                .mapToInt(SleepRecord::getPhysicalActivityLevel)
+                .average()
+                .orElse(0.0);
     }
 
 
