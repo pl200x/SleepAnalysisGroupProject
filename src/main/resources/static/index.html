@@ -1,31 +1,692 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <title>Sleep Quality Analysis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Sleep Analysis Dossier</title>
+
+    <link rel="icon" type="image/svg+xml"
+          href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='12' fill='%23E9B872'/><circle cx='20' cy='13' r='10' fill='%230A0F1F'/></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+
+    <style type="text/tailwindcss">
+        @theme {
+            --color-ink-0: #07090F;
+            --color-ink-1: #0A0F1F;
+            --color-ink-2: #10182C;
+            --color-ink-3: #161F38;
+            --color-ink-4: #1E2A47;
+
+            --color-cream: #F1ECDF;
+            --color-cream-dim: #C9C2B0;
+            --color-muted: #8A93A6;
+            --color-muted-2: #5C6478;
+
+            --color-amber: #E9B872;
+            --color-dusk: #A693E0;
+            --color-teal: #7BCFB8;
+            --color-rose: #E07A6E;
+
+            --color-line: rgb(241 236 223 / 0.10);
+            --color-line-strong: rgb(241 236 223 / 0.20);
+
+            --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+            --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+            --animate-rise: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+            @keyframes rise {
+                from { opacity: 0; transform: translateY(14px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+        }
+
+        /* Page-wide atmosphere — radial glows + grain overlay. */
+        @layer base {
+            body::before {
+                content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+                background:
+                    radial-gradient(1200px 700px at 80% -10%, rgb(166 147 224 / 0.13), transparent 60%),
+                    radial-gradient(900px 500px at -10% 30%, rgb(233 184 114 / 0.08), transparent 60%),
+                    radial-gradient(1400px 900px at 50% 120%, rgb(123 207 184 / 0.06), transparent 70%);
+            }
+            body::after {
+                content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+                opacity: 0.55; mix-blend-mode: overlay;
+                background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.92  0 0 0 0 0.85  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+            }
+        }
+
+        /* Reusable visual primitives */
+        @utility brand-glyph {
+            width: 22px; height: 22px; border-radius: 50%;
+            background:
+                radial-gradient(circle at 35% 30%, var(--color-cream) 0 38%, transparent 39%),
+                radial-gradient(circle at 60% 55%, var(--color-ink-1) 0 48%, transparent 49%),
+                var(--color-amber);
+            box-shadow: 0 0 24px rgb(233 184 114 / 0.30);
+        }
+
+        @utility moon-icon {
+            width: 56px; height: 56px; border-radius: 50%; opacity: 0.4;
+            background:
+                radial-gradient(circle at 30% 30%, var(--color-cream) 0 35%, transparent 36%),
+                radial-gradient(circle at 65% 60%, var(--color-ink-2) 0 50%, transparent 51%),
+                var(--color-cream-dim);
+            box-shadow: 0 0 40px rgb(241 236 223 / 0.05);
+        }
+
+        @utility range-slider {
+            appearance: none;
+            width: 100%; height: 2px; outline: none;
+            background: var(--color-line-strong); border-radius: 1px;
+
+            &::-webkit-slider-thumb {
+                appearance: none; width: 14px; height: 14px;
+                background: var(--color-amber); border: 2px solid var(--color-ink-1);
+                border-radius: 50%; cursor: pointer;
+                box-shadow: 0 0 0 1px var(--color-amber), 0 0 12px rgb(233 184 114 / 0.35);
+            }
+            &::-moz-range-thumb {
+                width: 14px; height: 14px;
+                background: var(--color-amber); border: 2px solid var(--color-ink-1);
+                border-radius: 50%; cursor: pointer;
+            }
+        }
+
+        @utility field-line {
+            background: transparent; border: 0;
+            border-bottom: 1px solid var(--color-line-strong);
+            color: var(--color-cream); padding: 0.55rem 0; outline: none;
+            font: inherit; width: 100%;
+            transition: border-color 0.2s ease;
+
+            &:focus { border-color: var(--color-amber); }
+            &::placeholder { color: var(--color-muted-2); }
+
+            /* select option dropdowns inherit cleanly */
+            & option { background: var(--color-ink-2); color: var(--color-cream); }
+        }
+    </style>
 </head>
-<body>
-<h1>Sleep Quality Analysis</h1>
 
-<p>This page loads sleep health data from a CSV file through Spring Boot.</p>
+<body class="font-sans bg-ink-1 text-cream antialiased overflow-x-hidden">
 
-<button onclick="loadData()">Load CSV Data</button>
 
-<h2>Result</h2>
-<p id="result">Data has not been loaded yet.</p>
+<div class="sticky top-0 z-50 border-b border-line bg-ink-1/70 backdrop-blur-md backdrop-saturate-150">
+    <div class="max-w-[1240px] mx-auto px-[clamp(1.25rem,4vw,2.5rem)] py-3.5 flex items-center justify-between gap-6">
+        <div class="flex items-center gap-2.5 font-serif text-[1.35rem] tracking-[0.01em]">
+            <span aria-hidden="true" class="brand-glyph"></span>
+            <span>Sleep Dossier</span>
+        </div>
+        <nav class="hidden sm:flex gap-6 font-mono text-[0.8rem] tracking-[0.04em] uppercase">
+            <a href="#dataset" class="text-muted hover:text-cream transition-colors">01 Dataset</a>
+            <a href="#patterns" class="text-muted hover:text-cream transition-colors">02 Patterns</a>
+            <a href="#profile" class="text-muted hover:text-cream transition-colors">03 Your Profile</a>
+        </nav>
+    </div>
+</div>
+
+<main class="relative z-10">
+
+<header class="max-w-[1240px] mx-auto px-[clamp(1.25rem,4vw,2.5rem)] pt-[clamp(5rem,14vw,9rem)] pb-[clamp(4rem,10vw,7rem)]">
+    <h1 class="animate-rise [animation-delay:50ms] font-serif font-normal text-[clamp(3rem,9vw,7.5rem)] leading-[0.96] tracking-[-0.02em] m-0">
+        A study of <span class="italic text-amber">sleep,</span><br>
+        <span class="text-cream-dim">stress &amp; the</span><br>
+        quiet hours.
+    </h1>
+    <p class="animate-rise [animation-delay:180ms] mt-8 text-[1.15rem] text-muted max-w-[58ch]">
+        A working dossier built atop a <strong class="text-cream font-medium">publicly available sleep-health dataset</strong>—charting how stress, activity, and body composition trace patterns across the night. Below, the population-level findings; further down, an <em class="italic text-amber">intake</em> for your own.
+    </p>
+</header>
+
+<section id="dataset" class="max-w-[1240px] mx-auto px-[clamp(1.25rem,4vw,2.5rem)] py-[clamp(4rem,10vw,7rem)] border-t border-line">
+    <div class="mb-12">
+        <span class="inline-block font-mono text-[0.75rem] tracking-[0.18em] uppercase text-amber pt-2.5 border-t border-amber mb-6">§ 01 — Dataset</span>
+        <div class="flex flex-wrap items-end justify-between gap-6">
+            <div class="flex-1 min-w-[280px]">
+                <h2 class="font-serif font-normal text-[clamp(2rem,4.5vw,3.4rem)] leading-[1.05] tracking-[-0.01em] m-0 mb-2.5">
+                    Agreggate Data
+                </h2>
+                <p class="text-[1.05rem] text-muted max-w-[56ch] m-0">
+                    Aggregate signals across the full population. Numbers refresh from the Spring service on each load.
+                </p>
+            </div>
+            <button id="reload-btn" type="button"
+                    class="font-mono text-[0.72rem] tracking-[0.16em] uppercase text-muted hover:text-amber transition-colors disabled:opacity-40 disabled:cursor-progress border border-line hover:border-amber px-3.5 py-2 rounded-sm">
+                ↻ Reload dataset
+            </button>
+        </div>
+    </div>
+
+    <div id="dataset-error" role="alert" class="hidden mb-6 px-4 py-3 border border-rose/30 bg-rose/5 text-rose font-mono text-[0.85rem] tracking-[0.04em] rounded-sm"></div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-line border border-line rounded-sm overflow-hidden">
+        <article class="bg-ink-1 hover:bg-ink-2 transition-colors px-6 pt-7 pb-6 min-h-[180px] flex flex-col justify-between">
+            <div class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-muted">Records</div>
+            <div>
+                <div class="font-serif font-normal text-[clamp(2.6rem,5vw,3.6rem)] leading-none tracking-[-0.02em]" id="m-records">—</div>
+                <div class="mt-2.5 text-[0.85rem] text-cream-dim flex items-center">
+                    <span aria-hidden="true" class="inline-block w-1.5 h-1.5 rounded-full mr-2 bg-amber shadow-[0_0_8px_rgb(233_184_114_/_0.4)]"></span>
+                    population sampled
+                </div>
+            </div>
+        </article>
+        <article class="bg-ink-1 hover:bg-ink-2 transition-colors px-6 pt-7 pb-6 min-h-[180px] flex flex-col justify-between">
+            <div class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-muted">Avg. duration</div>
+            <div>
+                <div class="font-serif font-normal text-[clamp(2.6rem,5vw,3.6rem)] leading-none tracking-[-0.02em]">
+                    <span id="m-duration">—</span><span class="font-mono text-[0.85rem] text-muted tracking-[0.08em] ml-1.5 align-super">hrs</span>
+                </div>
+                <div class="mt-2.5 text-[0.85rem] text-cream-dim flex items-center">
+                    <span aria-hidden="true" class="inline-block w-1.5 h-1.5 rounded-full mr-2 bg-dusk"></span>
+                    nightly mean
+                </div>
+            </div>
+        </article>
+        <article class="bg-ink-1 hover:bg-ink-2 transition-colors px-6 pt-7 pb-6 min-h-[180px] flex flex-col justify-between">
+            <div class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-muted">Avg. quality</div>
+            <div>
+                <div class="font-serif font-normal text-[clamp(2.6rem,5vw,3.6rem)] leading-none tracking-[-0.02em]">
+                    <span id="m-quality">—</span><span class="font-mono text-[0.85rem] text-muted tracking-[0.08em] ml-1.5 align-super">/10</span>
+                </div>
+                <div class="mt-2.5 text-[0.85rem] text-cream-dim flex items-center">
+                    <span aria-hidden="true" class="inline-block w-1.5 h-1.5 rounded-full mr-2 bg-teal"></span>
+                    self-reported
+                </div>
+            </div>
+        </article>
+        <article class="bg-ink-1 hover:bg-ink-2 transition-colors px-6 pt-7 pb-6 min-h-[180px] flex flex-col justify-between">
+            <div class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-muted">Avg. stress</div>
+            <div>
+                <div class="font-serif font-normal text-[clamp(2.6rem,5vw,3.6rem)] leading-none tracking-[-0.02em]">
+                    <span id="m-stress">—</span><span class="font-mono text-[0.85rem] text-muted tracking-[0.08em] ml-1.5 align-super">/10</span>
+                </div>
+                <div class="mt-2.5 text-[0.85rem] text-cream-dim flex items-center">
+                    <span aria-hidden="true" class="inline-block w-1.5 h-1.5 rounded-full mr-2 bg-rose"></span>
+                    daily index
+                </div>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section id="patterns" class="max-w-[1240px] mx-auto px-[clamp(1.25rem,4vw,2.5rem)] py-[clamp(4rem,10vw,7rem)] border-t border-line">
+    <div class="mb-12">
+        <span class="inline-block font-mono text-[0.75rem] tracking-[0.18em] uppercase text-amber pt-2.5 border-t border-amber mb-6">§ 02 — Patterns</span>
+        <h2 class="font-serif font-normal text-[clamp(2rem,4.5vw,3.4rem)] leading-[1.05] tracking-[-0.01em] m-0 mb-2.5">
+            Three pillars of Sleep.
+        </h2>
+        <p class="text-[1.05rem] text-muted max-w-[56ch] m-0">
+            Sleep quality decays as stress climbs; movement helps; body composition shifts disorder rates.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6">
+        <figure class="lg:col-span-2 bg-gradient-to-b from-ink-2 to-ink-1 border border-line rounded-md p-7 m-0">
+            <h3 class="font-serif text-[1.5rem] font-normal m-0 mb-6 pb-4 border-b border-line tracking-[-0.005em]">
+                Stress vs. sleep quality &amp; duration
+            </h3>
+            <div class="relative h-80"><canvas id="chart-stress" role="img" aria-label="Stress level vs. sleep quality and duration"></canvas></div>
+        </figure>
+
+        <figure class="bg-gradient-to-b from-ink-2 to-ink-1 border border-line rounded-md p-7 m-0">
+            <h3 class="font-serif text-[1.5rem] font-normal m-0 mb-6 pb-4 border-b border-line tracking-[-0.005em]">Activity tier</h3>
+            <div class="relative h-72"><canvas id="chart-activity" role="img" aria-label="Sleep quality by physical activity tier"></canvas></div>
+        </figure>
+
+        <figure class="bg-gradient-to-b from-ink-2 to-ink-1 border border-line rounded-md p-7 m-0">
+            <h3 class="font-serif text-[1.5rem] font-normal m-0 mb-6 pb-4 border-b border-line tracking-[-0.005em]">BMI &amp; disorder rate</h3>
+            <div class="relative h-72"><canvas id="chart-bmi" role="img" aria-label="Sleep disorder rate by BMI category"></canvas></div>
+        </figure>
+    </div>
+</section>
+
+<section id="profile" class="max-w-[1240px] mx-auto px-[clamp(1.25rem,4vw,2.5rem)] py-[clamp(4rem,10vw,7rem)] border-t border-line">
+    <div class="mb-12">
+        <span class="inline-block font-mono text-[0.75rem] tracking-[0.18em] uppercase text-amber pt-2.5 border-t border-amber mb-6">§ 03 — Your profile</span>
+        <h2 class="font-serif font-normal text-[clamp(2rem,4.5vw,3.4rem)] leading-[1.05] tracking-[-0.01em] m-0 mb-2.5">
+            Personal Analysis
+        </h2>
+        <p class="text-[1.05rem] text-muted max-w-[56ch] m-0">
+            Submit your own readings; we'll find the most similar cohort and return an estimated quality score with recommendations.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <!-- Form -->
+        <form id="intake-form" autocomplete="off"
+              class="bg-gradient-to-b from-ink-2 to-ink-1 border border-line rounded-md p-8">
+            <h3 class="font-serif text-[1.35rem] font-normal m-0 mb-7">Tell us about your night.</h3>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="flex flex-col gap-1.5">
+                    <label for="f-gender" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Gender</label>
+                    <select id="f-gender" name="gender" required class="field-line">
+                        <option value="">—</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label for="f-age" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Age</label>
+                    <input id="f-age" name="age" type="number" min="1" max="120" placeholder="e.g. 28" required class="field-line">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5 mb-4">
+                <label for="f-occupation" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Occupation</label>
+                <input id="f-occupation" name="occupation" type="text" placeholder="e.g. Software Engineer" required class="field-line">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="flex flex-col gap-1.5">
+                    <label for="f-bmi" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">BMI category</label>
+                    <select id="f-bmi" name="bmiCategory" required class="field-line">
+                        <option value="">—</option>
+                        <option value="Normal">Normal</option>
+                        <option value="Normal Weight">Normal Weight</option>
+                        <option value="Overweight">Overweight</option>
+                        <option value="Obese">Obese</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label for="f-bp" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Blood pressure</label>
+                    <input id="f-bp" name="bloodPressure" type="text" placeholder="e.g. 120/80" required class="field-line">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2.5 mb-4">
+                <div class="flex items-baseline justify-between">
+                    <label for="f-sleep" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Sleep duration</label>
+                    <span class="font-serif italic text-[1.5rem] text-amber">
+                        <output for="f-sleep" id="v-sleep">7.0</output>
+                        <span class="text-[0.9rem] text-muted not-italic font-mono">hrs</span>
+                    </span>
+                </div>
+                <input id="f-sleep" name="sleepDuration" type="range" min="3" max="12" step="0.1" value="7.0" class="range-slider">
+            </div>
+
+            <div class="flex flex-col gap-2.5 mb-4">
+                <div class="flex items-baseline justify-between">
+                    <label for="f-stress" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Stress level</label>
+                    <span class="font-serif italic text-[1.5rem] text-amber">
+                        <output for="f-stress" id="v-stress">5</output><span class="text-[0.9rem] text-muted not-italic font-mono">/10</span>
+                    </span>
+                </div>
+                <input id="f-stress" name="stressLevel" type="range" min="1" max="10" step="1" value="5" class="range-slider">
+            </div>
+
+            <div class="flex flex-col gap-2.5 mb-4">
+                <div class="flex items-baseline justify-between">
+                    <label for="f-activity" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Physical activity</label>
+                    <span class="font-serif italic text-[1.5rem] text-amber">
+                        <output for="f-activity" id="v-activity">50</output><span class="text-[0.9rem] text-muted not-italic font-mono">/100</span>
+                    </span>
+                </div>
+                <input id="f-activity" name="physicalActivityLevel" type="range" min="0" max="100" step="1" value="50" class="range-slider">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="flex flex-col gap-1.5">
+                    <label for="f-heart" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Resting heart rate</label>
+                    <input id="f-heart" name="heartRate" type="number" min="30" max="200" placeholder="bpm" required class="field-line">
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label for="f-steps" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Daily steps</label>
+                    <input id="f-steps" name="dailySteps" type="number" min="0" max="50000" placeholder="e.g. 7000" required class="field-line">
+                </div>
+            </div>
+
+            <!-- CSS-only conditional reveal via :has() + grid-rows[0fr→1fr] (modern auto-height pattern) -->
+            <div class="mt-2 grid grid-rows-[auto_0fr] has-[:checked]:grid-rows-[auto_1fr] transition-[grid-template-rows] duration-300 ease-out">
+                <label class="inline-flex items-center gap-2.5 text-[0.9rem] text-cream-dim cursor-pointer select-none">
+                    <input type="checkbox" id="f-email-on" name="emailOn" class="accent-amber w-4 h-4">
+                    Also email me a copy of this report
+                </label>
+                <div class="overflow-hidden">
+                    <div class="flex flex-col gap-1.5 pt-3">
+                        <label for="f-email" class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-cream-dim">Email address</label>
+                        <input id="f-email" name="email" type="email" placeholder="you@example.com" class="field-line">
+                    </div>
+                </div>
+            </div>
+
+            <button id="submit-btn" type="submit"
+                    class="mt-6 w-full px-5 py-4 bg-cream text-ink-1 rounded-sm font-mono text-[0.78rem] tracking-[0.18em] uppercase cursor-pointer transition-all hover:bg-amber hover:-translate-y-px disabled:opacity-50 disabled:cursor-progress disabled:transform-none">
+                Generate insight ↗
+            </button>
+            <div id="form-err" role="alert" class="text-rose text-[0.88rem] mt-2.5 font-mono tracking-[0.05em]"></div>
+        </form>
+
+        <!-- Result -->
+        <div class="relative overflow-hidden bg-gradient-to-b from-ink-3 to-ink-2 border border-line-strong rounded-md p-8">
+            <div aria-hidden="true"
+                 class="absolute top-0 right-0 w-60 h-60 -translate-y-2/5 translate-x-2/5 pointer-events-none rounded-full
+                        bg-[radial-gradient(circle,rgb(233_184_114_/_0.18),transparent_70%)]"></div>
+
+            <div id="result-empty" class="flex flex-col items-center justify-center text-center min-h-[360px] text-muted-2 font-serif italic text-[1.05rem] gap-4 relative">
+                <div aria-hidden="true" class="moon-icon"></div>
+                <div>Awaiting your intake.<br>Your insight will surface here.</div>
+            </div>
+            <div id="result-content" class="relative z-10 hidden"></div>
+        </div>
+    </div>
+</section>
+
+</main>
+
+<footer class="relative z-10 max-w-[1240px] mx-auto px-[clamp(1.25rem,4vw,2.5rem)] pt-10 pb-14 border-t border-line mt-8">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+        <div class="font-serif text-[1.05rem] text-cream-dim max-w-[60ch]">
+            Compiled by <strong class="text-cream font-normal italic">Minqi Huang</strong>,
+            <strong class="text-cream font-normal italic">Peilin Wang</strong>, and
+            <strong class="text-cream font-normal italic">David M. S. Conselvan</strong>
+            — Programming in Java, Columbia University.
+        </div>
+        <div class="font-mono text-[0.7rem] tracking-[0.14em] uppercase text-muted-2 sm:text-right">
+            Spring Boot · Java 21
+        </div>
+    </div>
+</footer>
 
 <script>
-    function loadData() {
-        fetch('/load-data')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('result').innerText = data;
-            })
-            .catch(error => {
-                document.getElementById('result').innerText = 'Failed to load data.';
-                console.error(error);
-            });
+    Chart.defaults.color = "#8A93A6";
+    Chart.defaults.font.family = '"DM Sans", system-ui, sans-serif';
+    Chart.defaults.font.size = 11;
+    Chart.defaults.borderColor = "rgba(241, 236, 223, 0.06)";
+
+    const palette = {
+        amber: "#E9B872", amberSoft: "rgba(233, 184, 114, 0.18)",
+        dusk: "#A693E0",  duskSoft:  "rgba(166, 147, 224, 0.20)",
+        teal: "#7BCFB8",  tealSoft:  "rgba(123, 207, 184, 0.22)",
+        rose: "#E07A6E",  roseSoft:  "rgba(224, 122, 110, 0.20)",
+        cream: "#F1ECDF", muted: "#5C6478",
+    };
+
+    const tooltipStyle = {
+        backgroundColor: "#10182C",
+        borderColor: "rgba(241, 236, 223, 0.15)",
+        borderWidth: 1,
+        titleColor: palette.cream,
+        bodyColor: palette.cream,
+        padding: 12,
+        titleFont: { family: '"JetBrains Mono", monospace', size: 10 },
+    };
+
+    const fmt1 = (n) => (n == null || isNaN(n)) ? "—" : Number(n).toFixed(1);
+    const fmt0 = (n) => (n == null || isNaN(n)) ? "—" : Math.round(Number(n)).toLocaleString();
+
+    const form = document.getElementById("intake-form");
+    const outputs = {
+        "f-sleep":    (v) => Number(v).toFixed(1),
+        "f-stress":   (v) => v,
+        "f-activity": (v) => v,
+    };
+    form.addEventListener("input", (e) => {
+        const fmt = outputs[e.target.id];
+        if (!fmt) return;
+        const out = document.getElementById("v" + e.target.id.slice(1));
+        if (out) out.value = fmt(e.target.value);
+    });
+
+    document.getElementById("reload-btn").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = "Reloading…";
+        try {
+            await fetch("/sleep_data/launch");
+            await loadAnalysis();
+        } finally {
+            btn.disabled = false;
+            btn.textContent = original;
+        }
+    });
+
+    const charts = {};
+    const destroyChart = (k) => { if (charts[k]) { charts[k].destroy(); delete charts[k]; } };
+    const gridOpts = () => ({
+        grid: { color: "rgba(241, 236, 223, 0.06)", drawBorder: false },
+        ticks: { color: "#8A93A6", font: { family: '"JetBrains Mono", monospace', size: 10 } },
+    });
+
+    async function loadAnalysis() {
+        const errBox = document.getElementById("dataset-error");
+        errBox.classList.add("hidden");
+        try {
+            const res = await fetch("/analysis/summary");
+            const data = await res.json();
+            if (!data.baseVO?.success || !data.analysisSummary) {
+                throw new Error(data.baseVO?.errorMessage || "Server returned no data");
+            }
+            const s = data.analysisSummary;
+            renderMetrics(s);
+            renderStressChart(s.stressGroupResults || []);
+            renderActivityChart(s.activityGroupResults || []);
+            renderBmiChart(s.bmiGroupResults || []);
+        } catch (err) {
+            console.error(err);
+            errBox.textContent = err.message || "Failed to load dataset.";
+            errBox.classList.remove("hidden");
+        }
     }
+
+    function renderMetrics(s) {
+        document.getElementById("m-records").textContent = fmt0(s.totalRecords);
+        document.getElementById("m-duration").textContent = fmt1(s.averageSleepDuration);
+        document.getElementById("m-quality").textContent = fmt1(s.averageSleepQuality);
+        document.getElementById("m-stress").textContent = fmt1(s.averageStressLevel);
+    }
+
+    function renderStressChart(rows) {
+        destroyChart("stress");
+        charts.stress = new Chart(document.getElementById("chart-stress"), {
+            type: "bar",
+            data: {
+                labels: rows.map(r => "Stress " + r.stressLevel),
+                datasets: [
+                    {
+                        label: "Avg. sleep quality",
+                        data: rows.map(r => r.averageSleepQuality),
+                        backgroundColor: palette.amberSoft, borderColor: palette.amber,
+                        borderWidth: 1, borderRadius: 2, yAxisID: "y",
+                    },
+                    {
+                        label: "Avg. duration (hrs)",
+                        data: rows.map(r => r.averageSleepDuration),
+                        type: "line",
+                        borderColor: palette.dusk, backgroundColor: palette.duskSoft,
+                        tension: 0.35, pointBackgroundColor: palette.dusk,
+                        pointRadius: 3, pointHoverRadius: 5, yAxisID: "y1",
+                    },
+                ],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: { position: "top", align: "end",
+                        labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, color: palette.cream } },
+                    tooltip: tooltipStyle,
+                },
+                scales: {
+                    x: gridOpts(),
+                    y:  { ...gridOpts(), position: "left",  title: { display: true, text: "Quality /10", color: palette.muted } },
+                    y1: { ...gridOpts(), position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Hours", color: palette.muted } },
+                },
+            },
+        });
+    }
+
+    function renderActivityChart(rows) {
+        destroyChart("activity");
+        charts.activity = new Chart(document.getElementById("chart-activity"), {
+            type: "bar",
+            data: {
+                labels: rows.map(r => r.activityGroup),
+                datasets: [{
+                    label: "Avg. sleep quality",
+                    data: rows.map(r => r.averageSleepQuality),
+                    backgroundColor: [palette.duskSoft, palette.amberSoft, palette.tealSoft],
+                    borderColor:     [palette.dusk,     palette.amber,     palette.teal],
+                    borderWidth: 1, borderRadius: 2,
+                }],
+            },
+            options: {
+                indexAxis: "y", responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { ...tooltipStyle,
+                        callbacks: { label: (c) => ` Quality ${fmt1(c.raw)}/10  ·  n=${rows[c.dataIndex].count}` } },
+                },
+                scales: { x: { ...gridOpts(), suggestedMax: 10 }, y: gridOpts() },
+            },
+        });
+    }
+
+    function renderBmiChart(rows) {
+        destroyChart("bmi");
+        charts.bmi = new Chart(document.getElementById("chart-bmi"), {
+            type: "doughnut",
+            data: {
+                labels: rows.map(r => r.bmiCategory),
+                datasets: [{
+                    data: rows.map(r => r.sleepDisorderRate * 100),
+                    backgroundColor: [palette.tealSoft, palette.amberSoft, palette.duskSoft, palette.roseSoft],
+                    borderColor:     [palette.teal,     palette.amber,     palette.dusk,     palette.rose],
+                    borderWidth: 1.5, hoverOffset: 6,
+                }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: "62%",
+                plugins: {
+                    legend: { position: "right",
+                        labels: { color: palette.cream, boxWidth: 10, boxHeight: 10, usePointStyle: true, padding: 14 } },
+                    tooltip: { ...tooltipStyle,
+                        callbacks: { label: (c) => ` ${rows[c.dataIndex].bmiCategory}  ·  ${c.raw.toFixed(0)}% disorder rate` } },
+                },
+            },
+        });
+    }
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById("form-err");
+        const btn = document.getElementById("submit-btn");
+        errBox.textContent = "";
+
+        const fd = new FormData(form);
+        const payload = {
+            gender:                fd.get("gender"),
+            age:                   Number(fd.get("age")),
+            occupation:            fd.get("occupation"),
+            sleepDuration:         Number(fd.get("sleepDuration")),
+            physicalActivityLevel: Number(fd.get("physicalActivityLevel")),
+            stressLevel:           Number(fd.get("stressLevel")),
+            bmiCategory:           fd.get("bmiCategory"),
+            bloodPressure:         fd.get("bloodPressure"),
+            heartRate:             Number(fd.get("heartRate")),
+            dailySteps:            Number(fd.get("dailySteps")),
+        };
+
+        const wantEmail = fd.get("emailOn") === "on";
+        const email = (fd.get("email") || "").toString().trim();
+        if (wantEmail && !email) {
+            errBox.textContent = "Email is required when 'email me' is on.";
+            return;
+        }
+
+        const url = wantEmail
+            ? `/personal/analyze-and-email?email=${encodeURIComponent(email)}`
+            : "/personal/analyze";
+
+        btn.disabled = true;
+        btn.textContent = "Reading the night…";
+        try {
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!data.baseVO?.success || !data.personalResultInsight) {
+                throw new Error(data.baseVO?.errorMessage || "Server error");
+            }
+            renderResult(data.personalResultInsight, wantEmail ? email : null);
+        } catch (err) {
+            errBox.textContent = err.message || "Something went wrong.";
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Generate insight ↗";
+        }
+    });
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+        }[c]));
+    }
+
+    const liRisk = (text) => `
+        <li class="relative pl-6 py-2 text-[0.95rem] text-cream border-b border-dashed border-line list-none before:content-['—'] before:absolute before:left-0 before:top-2 before:font-mono before:text-rose">
+            ${escapeHtml(text)}
+        </li>`;
+    const liRec = (text) => `
+        <li class="relative pl-6 py-2 text-[0.95rem] text-cream border-b border-dashed border-line list-none before:content-['—'] before:absolute before:left-0 before:top-2 before:font-mono before:text-teal">
+            ${escapeHtml(text)}
+        </li>`;
+
+    function renderResult(r, emailedTo) {
+        document.getElementById("result-empty").classList.add("hidden");
+        const wrap = document.getElementById("result-content");
+        wrap.classList.remove("hidden");
+
+        const risks = (r.riskFactors || []);
+        const recs  = (r.recommendations || []);
+        const risksHtml = risks.length
+            ? risks.map(liRisk).join("")
+            : `<li class="text-muted py-2">None flagged from this intake.</li>`;
+        const recsHtml = recs.length
+            ? recs.map(liRec).join("")
+            : `<li class="text-muted py-2">No specific recommendations.</li>`;
+
+        wrap.innerHTML = `
+            <div class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-amber mb-3">Estimated</div>
+            <div class="flex items-baseline gap-4 mb-2">
+                <span class="font-serif text-[5.5rem] font-normal leading-none tracking-[-0.03em]">${fmt1(r.estimatedSleepQuality)}</span>
+                <span class="font-mono text-muted text-base">/ 10</span>
+            </div>
+            <div class="inline-block font-serif italic text-[1.4rem] text-amber mb-1.5">${escapeHtml(r.sleepQualityCategory || "—")}</div>
+            <div class="text-[0.85rem] text-muted font-mono tracking-[0.06em] mb-7">
+                Based on ${fmt0(r.similarUserCount)} similar profile${r.similarUserCount === 1 ? "" : "s"}
+            </div>
+
+            <div class="mb-6">
+                <h4 class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-cream-dim m-0 mb-3 pb-1.5 border-b border-line">Risk factors</h4>
+                <ul class="m-0 p-0">${risksHtml}</ul>
+            </div>
+            <div>
+                <h4 class="font-mono text-[0.7rem] tracking-[0.16em] uppercase text-cream-dim m-0 mb-3 pb-1.5 border-b border-line">Recommendations</h4>
+                <ul class="m-0 p-0">${recsHtml}</ul>
+            </div>
+            ${emailedTo ? `
+                <div class="mt-4 px-4 py-3 border-l-2 border-amber bg-amber/5 text-[0.88rem] text-cream-dim italic font-serif">
+                    A copy was dispatched to <strong class="text-cream not-italic">${escapeHtml(emailedTo)}</strong>.
+                </div>
+            ` : ""}
+        `;
+        wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    loadAnalysis();
 </script>
+
 </body>
 </html>
