@@ -1,32 +1,31 @@
-# Sleep Analysis Group Project
+# Sleep Analysis
 
-## Project Background:
+A Spring Boot web app that analyzes a sleep-health dataset and provides personalized insights.
 
-## How to Run:
-1. Clone the repository
-2. Open the project in Java IDE
-3. Run: SleepAnalysisApplication.java
+## Requirements
 
-## Features:
+- Java 21
+- Maven (or use the bundled `./mvnw`)
 
-### Email Configuration (Required for Email Feature)
+## Run
 
-To enable email functionality, you must configure your own Gmail account.
+```bash
+./mvnw spring-boot:run
+```
 
-Edit:
-src/main/resources/application.properties
+Then open <http://localhost:8080>.
 
-Add:
-  - `spring.mail.username` with your Gmail address
-  - `spring.mail.password` with your App Password
+## Email feature (optional)
 
-### Notes:
-You **must use a Gmail App Password**, not normal password. 
-Here is a link guide you to generate a Gmail App Password:
-https://www.youtube.com/watch?v=GsXyF5Zb5UY
+To enable the "email me a copy" option, edit `src/main/resources/application.properties` and fill in:
+
+```properties
+spring.mail.username=your.address@gmail.com
+spring.mail.password=your-app-password
+```
+
+You must use a [Gmail App Password](https://support.google.com/accounts/answer/185833), not your regular password. Restart the app after editing.
 
 ## Authors
-- Minqi Huang  
-- Peilin Wang  
-- David Matheus Seixas Conselvan  
 
+Minqi Huang · Peilin Wang · David M. S. Conselvan
