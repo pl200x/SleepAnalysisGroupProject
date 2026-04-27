@@ -242,8 +242,8 @@
         </figure>
 
         <figure class="bg-gradient-to-b from-ink-2 to-ink-1 border border-line rounded-md p-7 m-0">
-            <h3 class="font-serif text-[1.5rem] font-normal m-0 mb-6 pb-4 border-b border-line tracking-[-0.005em]">BMI &amp; disorder rate</h3>
-            <div class="relative h-72"><canvas id="chart-bmi" role="img" aria-label="Sleep disorder rate by BMI category"></canvas></div>
+            <h3 class="font-serif text-[1.5rem] font-normal m-0 mb-6 pb-4 border-b border-line tracking-[-0.005em]">BMI distribution &amp; disorder rate</h3>
+            <div class="relative h-72"><canvas id="chart-bmi" role="img" aria-label="BMI category distribution with sleep disorder rate"></canvas></div>
         </figure>
     </div>
 </section>
@@ -525,12 +525,20 @@
         });
     }
 
+    // Activity buckets are defined server-side in AnalysisServiceImpl.getActivityGroup():
+    // <40 → Low, 40–60 → Medium, >60 → High. Bake the ranges into the labels.
+    const ACTIVITY_RANGE = {
+        "Low Activity":    "Low (<40)",
+        "Medium Activity": "Medium (40–60)",
+        "High Activity":   "High (>60)",
+    };
+
     function renderActivityChart(rows) {
         destroyChart("activity");
         charts.activity = new Chart(document.getElementById("chart-activity"), {
             type: "bar",
             data: {
-                labels: rows.map(r => r.activityGroup),
+                labels: rows.map(r => ACTIVITY_RANGE[r.activityGroup] || r.activityGroup),
                 datasets: [{
                     label: "Avg. sleep quality",
                     data: rows.map(r => r.averageSleepQuality),
@@ -546,19 +554,37 @@
                     tooltip: { ...tooltipStyle,
                         callbacks: { label: (c) => ` Quality ${fmt1(c.raw)}/10  ·  n=${rows[c.dataIndex].count}` } },
                 },
-                scales: { x: { ...gridOpts(), suggestedMax: 10 }, y: gridOpts() },
+                scales: {
+                    x: {
+                        ...gridOpts(),
+                        suggestedMax: 10,
+                        title: { display: true, text: "Avg. sleep quality /10", color: palette.muted },
+                    },
+                    y: {
+                        ...gridOpts(),
+                        ticks: {
+                            color: palette.cream,
+                            font: { family: '"JetBrains Mono", monospace', size: 11 },
+                            padding: 8,
+                        },
+                        title: { display: true, text: "Activity level", color: palette.muted },
+                    },
+                },
             },
         });
     }
 
     function renderBmiChart(rows) {
         destroyChart("bmi");
+        // Wedge sizes encode population share (counts sum to a whole — semantically a doughnut).
+        // Disorder rate rides along in the tooltip so users see sample size context.
+        const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
         charts.bmi = new Chart(document.getElementById("chart-bmi"), {
             type: "doughnut",
             data: {
                 labels: rows.map(r => r.bmiCategory),
                 datasets: [{
-                    data: rows.map(r => r.sleepDisorderRate * 100),
+                    data: rows.map(r => r.count),
                     backgroundColor: [palette.tealSoft, palette.amberSoft, palette.duskSoft, palette.roseSoft],
                     borderColor:     [palette.teal,     palette.amber,     palette.dusk,     palette.rose],
                     borderWidth: 1.5, hoverOffset: 6,
@@ -570,7 +596,19 @@
                     legend: { position: "right",
                         labels: { color: palette.cream, boxWidth: 10, boxHeight: 10, usePointStyle: true, padding: 14 } },
                     tooltip: { ...tooltipStyle,
-                        callbacks: { label: (c) => ` ${rows[c.dataIndex].bmiCategory}  ·  ${c.raw.toFixed(0)}% disorder rate` } },
+                        callbacks: {
+                            label: (c) => {
+                                const r = rows[c.dataIndex];
+                                const share = (r.count / total) * 100;
+                                const rate = r.sleepDisorderRate * 100;
+                                return [
+                                    ` ${r.bmiCategory}`,
+                                    ` ${share.toFixed(1)}% of population  ·  n=${r.count}`,
+                                    ` Disorder rate: ${rate.toFixed(0)}%`,
+                                ];
+                            },
+                        },
+                    },
                 },
             },
         });
