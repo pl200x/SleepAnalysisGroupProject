@@ -48,7 +48,9 @@ public class AnalysisServiceImpl implements AnalysisService {
 
         //BMI results
         Map<String, List<SleepRecord>> bmiMap = records.stream()
-                .collect(Collectors.groupingBy(SleepRecord::getBmiCategory));
+                .collect(Collectors.groupingBy(
+                        record -> normalizeBmiCategory(record.getBmiCategory())
+                ));
 
         List<BMIGroupResult> bmiResults = getBMIGroupResultAnalysis(bmiMap);
 
@@ -159,5 +161,18 @@ public class AnalysisServiceImpl implements AnalysisService {
             default:
                 return 99;
         }
+    }
+    private String normalizeBmiCategory(String bmiCategory) {
+        if (bmiCategory == null) {
+            return "Unknown";
+        }
+
+        String value = bmiCategory.trim();
+
+        if (value.equalsIgnoreCase("Normal Weight")) {
+            return "Normal";
+        }
+
+        return value;
     }
 }
